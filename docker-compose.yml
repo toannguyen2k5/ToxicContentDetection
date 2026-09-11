@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: pbl6-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src/models/tier1_svm/saved:/app/src/models/tier1_svm/saved:ro
+      - ./src/models/tier2_bert/saved:/app/src/models/tier2_bert/saved:ro
+      - ./data:/app/data
+    extra_hosts:
+      # Cho container gọi được ra máy host qua "host.docker.internal"
+      # (Docker Desktop Windows/Mac đã tự có sẵn, dòng này chỉ cần thiết nếu chạy trên Linux)
+      - "host.docker.internal:host-gateway"
+    environment:
+      - QWEN_API_KEY=${QWEN_API_KEY}
+      - QWEN_API_URL=${QWEN_API_URL}
+      - QWEN_MODEL_NAME=${QWEN_MODEL_NAME}
+    restart: unless-stopped
+    networks:
+      - pbl6-net
+
+  image_service:
+    build:
+      context: .
+      dockerfile: docker/image_service.Dockerfile
+    container_name: pbl6-image-service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./image_service/saved:/app/image_service/saved:ro
+    restart: unless-stopped
+    networks:
+      - pbl6-net
+    # GPU (optional, cần nvidia-container-toolkit trên host):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard.Dockerfile
+      args:
+        REACT_APP_API_URL: http://localhost:8000
+    container_name: pbl6-dashboard
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - pbl6-net
+
+networks:
+  pbl6-net:
+    driver: bridge

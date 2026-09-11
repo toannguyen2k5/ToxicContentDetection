@@ -1,0 +1,17 @@
+notebooks/
+data/raw/
+data/processed/
+.git/
+.gitignore
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+dashboard/node_modules/
+dashboard/build/
+extension/
+*.ipynb
+*.log
+.DS_Store
+.env
