@@ -90,7 +90,7 @@ async function callQwen(text: string): Promise<{ label: Label; confidence: numbe
     const res = await axios.post(
       `${API_BASE}/api/text/classify`,
       { text },
-      { timeout: 35_000 }
+      { timeout: 120_000 }
     )
     const d = res.data?.tier3 ?? res.data
     return {
@@ -110,7 +110,7 @@ async function callQwen(text: string): Promise<{ label: Label; confidence: numbe
     stream: false,
   }
   const res = await axios.post(`${OLLAMA_URL}/v1/chat/completions`, body, {
-    timeout: 35_000,
+    timeout: 120_000,
     headers: { 'Content-Type': 'application/json' },
   })
   const content = res.data.choices[0].message.content as string
