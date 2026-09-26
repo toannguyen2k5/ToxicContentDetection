@@ -13,6 +13,7 @@ src/models/tier1_svm/saved/*
 src/models/tier2_bert/saved/*
 image_service/saved/*
 !**/saved/.gitkeep
+src/tier3_qwen/models/
 dashboard/node_modules/
 dashboard/build/
 .ipynb_checkpoints/

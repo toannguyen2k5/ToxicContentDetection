@@ -1,0 +1,1 @@
+FROM .\src\tier3_qwen\models\Qwen3-4B-GGUF\qwen3-4b-q4_k_m.gguf
