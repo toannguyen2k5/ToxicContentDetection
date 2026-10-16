@@ -1,13 +1,13 @@
 """
 [Owner: A]
-Route chính /api/text/predict - pipeline 3 tier (SVM -> BERT -> Qwen).
+Route /api/text - endpoint chính extension và dashboard gọi tới.
 """
+import hashlib
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from src.models.tier1_svm import predict as tier1
-from src.models.tier2_bert import predict as tier2
-from src.tier3_qwen.client import classify_with_qwen
+from api import cache , pipeline , batch
 
 router = APIRouter()
 
@@ -16,22 +16,35 @@ class PredictRequest(BaseModel):
     text: str
 
 
-class PredictResponse(BaseModel):
-    label: str
-    score: float
-    tier: int
+class PredictBatchRequest(BaseModel):
+    texts: list[str]
 
 
-@router.post("/predict", response_model=PredictResponse)
+def _cache_key(text: str) -> str:
+    return "tcd:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+@router.post("/predict")
 def predict(req: PredictRequest):
-    result = tier1.predict(req.text)
+    """
+    Endpoint mà Chrome extension gọi cho từng đoạn text quét được trên trang.
+    Trả về: {"text", "toxic", "label", "score", "tier"}
+    """
+    key = _cache_key(req.text)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
 
-    # TODO(A/B): định nghĩa threshold thật để quyết định leo tier
-    UNCERTAIN_THRESHOLD = 0.5
-    if result["score"] < UNCERTAIN_THRESHOLD:
-        result = tier2.predict(req.text)
-
-    if result["score"] < UNCERTAIN_THRESHOLD:
-        result = classify_with_qwen(req.text)
-
+    result = pipeline.predict_text(req.text)
+    cache.set(key, result)
     return result
+
+
+@router.post("/predict_batch")
+def predict_batch_endpoint(req: PredictBatchRequest):
+    """
+    Endpoint cho dashboard quét log hàng loạt.
+    Trả về: {"results": [ {"text", "toxic", "label", "score", "tier"}, ... ]}
+    """
+    results = batch.predict_batch(req.texts)
+    return {"results": results}

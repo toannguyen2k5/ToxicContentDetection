@@ -1,8 +1,28 @@
 <!DOCTYPE html>
 <html>
-  <head><meta charset="utf-8" /><link rel="stylesheet" href="styles.css" /></head>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
   <body>
-    <h3>Toxic Content Detector</h3>
+    <div class="tcd-popup">
+      <h3>Toxic Content Detector</h3>
+
+      <div class="tcd-row">
+        <span>Bật quét trang</span>
+        <label class="tcd-switch">
+          <input type="checkbox" id="tcd-toggle" />
+          <span class="tcd-slider"></span>
+        </label>
+      </div>
+
+      <div class="tcd-row">
+        <span>Đã chặn</span>
+        <strong id="tcd-count">0</strong>
+      </div>
+
+      <button id="tcd-reset" class="tcd-reset-btn">Đặt lại bộ đếm</button>
+    </div>
     <script src="popup.js"></script>
   </body>
 </html>

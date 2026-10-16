@@ -1,1 +1,28 @@
-/* [Owner: A] style cho blur overlay + popup */
+/* [Owner: A] CSS này được Chrome TỰ ĐỘNG chèn vào MỌI trang khớp
+   content_scripts.matches trong manifest.json (kể cả khi content.js
+   không làm gì). Vì vậy KHÔNG được đặt bất kỳ rule nào nhắm vào các
+   selector toàn cục như `body`, `html`, `*` ở đây — mọi rule global như
+   vậy sẽ áp thẳng lên trang web của người dùng (vd facebook.com) và có
+   thể phá vỡ layout của họ.
+   Toàn bộ style cho POPUP của extension đã được tách sang popup.css
+   (chỉ được load trong popup.html, không bao giờ chèn vào trang ngoài). */
+
+.tcd-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2147483647;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: rgba(255, 255, 255, 0.08);
+  outline: 1px dashed rgba(217, 48, 37, 0.5);
+  border-radius: 2px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: backdrop-filter 0.15s ease;
+}
+
+.tcd-overlay:hover {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}

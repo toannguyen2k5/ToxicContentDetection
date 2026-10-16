@@ -1,0 +1,83 @@
+/* [Owner: A] Style cho POPUP của extension.
+   File này CHỈ được load trong popup.html (KHÔNG khai báo trong
+   content_scripts của manifest.json), nên các rule global ở đây (body, ...)
+   an toàn và không ảnh hưởng tới bất kỳ trang web nào của người dùng. */
+
+body {
+  margin: 0;
+  width: 240px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.tcd-popup {
+  padding: 14px 16px;
+}
+
+.tcd-popup h3 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+}
+
+.tcd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.tcd-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.tcd-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.tcd-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #ccc;
+  border-radius: 20px;
+  transition: 0.2s;
+}
+
+.tcd-slider::before {
+  content: "";
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.tcd-switch input:checked + .tcd-slider {
+  background-color: #1a73e8;
+}
+
+.tcd-switch input:checked + .tcd-slider::before {
+  transform: translateX(16px);
+}
+
+.tcd-reset-btn {
+  width: 100%;
+  padding: 6px 0;
+  border: 1px solid #ddd;
+  background: #f6f6f6;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.tcd-reset-btn:hover {
+  background: #eee;
+}
