@@ -3,11 +3,13 @@
  * Charts: Pie chart phân bố nhãn + Bar chart lưu lượng 7 ngày.
  * Ported từ Charts.jsx của nhóm → adapted sang glassmorphism theme.
  */
+import { useEffect, useState } from 'react'
 import {
   PieChart, Pie, Cell,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
+import { fetchCharts, type DashboardCharts } from '../api/client'
 
 // ─── Màu đồng bộ với badge CSS ───────────────────
 const COLORS = {
@@ -15,23 +17,6 @@ const COLORS = {
   offensive: '#ffa94d',
   hate:      '#ff6b6b',
 }
-
-// ─── Mock data ─────────────────────────────────────
-const pieData = [
-  { name: 'Clean',     value: 12500, color: COLORS.clean     },
-  { name: 'Offensive', value: 1420,  color: COLORS.offensive },
-  { name: 'Hate',      value: 850,   color: COLORS.hate      },
-]
-
-const barData = [
-  { day: 'T2', clean: 2000, offensive: 200, hate: 120 },
-  { day: 'T3', clean: 1800, offensive: 210, hate: 150 },
-  { day: 'T4', clean: 2200, offensive: 180, hate:  90 },
-  { day: 'T5', clean: 2100, offensive: 230, hate: 110 },
-  { day: 'T6', clean: 2500, offensive: 290, hate: 180 },
-  { day: 'T7', clean: 1900, offensive: 250, hate: 140 },
-  { day: 'CN', clean: 1600, offensive: 150, hate: 100 },
-]
 
 // Custom tooltip cho dark theme
 const DarkTooltip = ({ active, payload, label }: {
@@ -58,12 +43,53 @@ const DarkTooltip = ({ active, payload, label }: {
 }
 
 export default function Charts() {
+  const [data, setData] = useState<DashboardCharts | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    const load = async () => {
+      try {
+        const response = await fetchCharts()
+        if (active) {
+          setData(response)
+          setError(null)
+        }
+      } catch (requestError) {
+        if (active) {
+          setError(requestError instanceof Error ? requestError.message : 'Không thể tải dữ liệu biểu đồ.')
+        }
+      }
+    }
+
+    void load()
+    const interval = window.setInterval(load, 30_000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [])
+
+  const pieData = data ? [
+    { name: 'Clean', value: data.labels.CLEAN, color: COLORS.clean },
+    { name: 'Offensive', value: data.labels.OFFENSIVE, color: COLORS.offensive },
+    { name: 'Hate', value: data.labels.HATE, color: COLORS.hate },
+  ] : []
+  const barData = data?.daily.map(item => ({
+    day: new Date(`${item.date}T00:00:00`).toLocaleDateString('vi-VN', { weekday: 'short' }),
+    clean: item.clean,
+    offensive: item.offensive,
+    hate: item.hate,
+  })) ?? []
+
   return (
     <div>
       <div className="page-header">
         <h1>📈 Charts</h1>
-        <p>Biểu đồ trực quan hóa phân bố nhãn và lưu lượng quét</p>
+        <p>Biểu đồ từ lịch sử dự đoán thực tế của API</p>
       </div>
+
+      {error && <div className="error-box">⚠️ Không tải được dữ liệu API: {error}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
         {/* Pie Chart — Phân bố nhãn */}
@@ -134,9 +160,10 @@ export default function Charts() {
         <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
           📊 Tổng dữ liệu:{' '}
           <strong style={{ color: 'var(--text-primary)' }}>
-            {(12500 + 1420 + 850).toLocaleString()} comment
+            {(data?.total ?? 0).toLocaleString()} comment
           </strong>
-          {' '}· Mock data — sẽ kết nối FastAPI ở Sprint 6
+          {!data && ' · Đang tải dữ liệu...'}
+          {data?.total === 0 && ' · Chưa có dự đoán nào được ghi nhận'}
         </div>
       </div>
     </div>

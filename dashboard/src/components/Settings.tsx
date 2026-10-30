@@ -104,7 +104,7 @@ export default function Settings() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {([
               { key: 'tier1', label: 'Tier 1 · SVM', desc: 'TF-IDF + Linear SVM — nhanh, cơ bản', required: true },
-              { key: 'tier2', label: 'Tier 2 · BERT', desc: 'ViSoBERT/BAMIBERT — độ chính xác cao', required: false },
+              { key: 'tier2', label: 'Tier 2 · PhoBERT', desc: 'PhoBERT cross-attention — phân loại có ngữ cảnh', required: false },
               { key: 'tier3', label: 'Tier 3 · Qwen3', desc: 'LLM local — xử lý case khó, chậm hơn', required: false },
             ] as const).map(item => (
               <label

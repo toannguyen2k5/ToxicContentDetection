@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { checkApiHealth } from './api/client'
 import LogViewer from './components/LogViewer'
 import ModelTester from './components/ModelTester'
 import ModelStats from './components/ModelStats'
@@ -17,6 +18,26 @@ const NAV_ITEMS: { id: Page; icon: string; label: string; sprint: string | null 
 
 export default function App() {
   const [page, setPage] = useState<Page>('logs')
+  const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'offline'>('checking')
+
+  useEffect(() => {
+    let active = true
+    const check = async () => {
+      try {
+        const healthy = await checkApiHealth()
+        if (active) setApiStatus(healthy ? 'connected' : 'offline')
+      } catch {
+        if (active) setApiStatus('offline')
+      }
+    }
+
+    void check()
+    const interval = window.setInterval(check, 15_000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [])
 
   const renderPage = () => {
     switch (page) {
@@ -60,8 +81,23 @@ export default function App() {
         <div className="sidebar-footer">
           <div>PBL6 — Nhóm phát triển</div>
           <div className="status-bar" style={{ marginTop: 6 }}>
-            <span className="dot" />
-            <span>API localhost:8000</span>
+            <span
+              className="dot"
+              style={{
+                background: apiStatus === 'connected'
+                  ? 'var(--success)'
+                  : apiStatus === 'offline'
+                    ? 'var(--danger)'
+                    : 'var(--warning)',
+              }}
+            />
+            <span>
+              {apiStatus === 'connected'
+                ? 'API localhost:8000'
+                : apiStatus === 'offline'
+                  ? 'API không khả dụng'
+                  : 'Đang kết nối API...'}
+            </span>
           </div>
         </div>
       </aside>

@@ -2,13 +2,16 @@
   "manifest_version": 3,
   "name": "Toxic Content Detector",
   "version": "0.1.0",
-  "description": "Scan và blur bình luận độc hại trên trang web",
+  "description": "Scan và blur bình luận độc hại trên mạng xã hội",
   "permissions": ["storage", "activeTab"],
   "host_permissions": ["http://localhost:8000/*"],
   "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "*://*.facebook.com/*",
+        "*://*.youtube.com/*"
+      ],
       "js": ["content.js"],
       "css": ["styles.css"]
     }

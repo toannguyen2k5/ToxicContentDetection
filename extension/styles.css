@@ -7,14 +7,16 @@
    Toàn bộ style cho POPUP của extension đã được tách sang popup.css
    (chỉ được load trong popup.html, không bao giờ chèn vào trang ngoài). */
 
+/* position: absolute — khớp với content.js (toạ độ = rect + scroll).
+   Overlay cuộn cùng trang nên không bị trễ/lộ khi lướt. */
 .tcd-overlay {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   z-index: 2147483647;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.15);
   outline: 1px dashed rgba(217, 48, 37, 0.5);
   border-radius: 2px;
   cursor: pointer;
@@ -23,6 +25,6 @@
 }
 
 .tcd-overlay:hover {
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }

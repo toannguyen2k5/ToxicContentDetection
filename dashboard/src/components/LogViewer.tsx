@@ -5,7 +5,7 @@
  * Fix C: click row → modal chi tiết comment đầy đủ.
  */
 import { useState, useEffect, useCallback } from 'react'
-import { fetchLogs, LogEntry } from '../api/client'
+import { fetchLogs, fetchStats, type DashboardStats, type LogEntry } from '../api/client'
 
 const PAGE_SIZE = 10
 
@@ -16,8 +16,8 @@ function formatTime(ts: string): string {
   })
 }
 
-function formatProb(p: number): string {
-  return p > 0 ? `${(p * 100).toFixed(0)}%` : '—'
+function formatProb(p: number | null): string {
+  return p != null ? `${(p * 100).toFixed(0)}%` : '—'
 }
 
 // ─── Modal chi tiết ───────────────────────────────────────────────────────
@@ -50,11 +50,11 @@ function LogDetailModal({ log, onClose }: { log: LogEntry; onClose: () => void }
           {/* Chi tiết kỹ thuật */}
           <div className="modal-details">
             <div className="detail-item">
-              <span className="detail-label">Prob Tier 1</span>
+              <span className="detail-label">Score Tier 1</span>
               <span className="detail-value">{formatProb(log.prob_t1)}</span>
             </div>
             <div className="detail-item">
-              <span className="detail-label">Prob Tier 2</span>
+              <span className="detail-label">Score Tier 2</span>
               <span className="detail-value">{formatProb(log.prob_t2)}</span>
             </div>
             <div className="detail-item">
@@ -68,9 +68,11 @@ function LogDetailModal({ log, onClose }: { log: LogEntry; onClose: () => void }
           </div>
 
           {/* URL nguồn */}
-          <div className="modal-url">
-            🔗 <a href={log.source_url} target="_blank" rel="noreferrer">{log.source_url}</a>
-          </div>
+          {log.source_url && (
+            <div className="modal-url">
+              🔗 <a href={log.source_url} target="_blank" rel="noreferrer">{log.source_url}</a>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -80,19 +82,33 @@ function LogDetailModal({ log, onClose }: { log: LogEntry; onClose: () => void }
 // ─── LogViewer chính ─────────────────────────────────────────────────────
 export default function LogViewer() {
   const [logs, setLogs] = useState<LogEntry[]>([])
+  const [totalLogs, setTotalLogs] = useState(0)
+  const [summary, setSummary] = useState<DashboardStats | null>(null)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)      // chỉ true lần đầu
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // Fix B: tham số silent — auto-refresh không set loading=true → tránh màn trắng
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
-    const data = await fetchLogs()
-    setLogs(data)
-    setLastRefresh(new Date())
-    setLoading(false)
-  }, [])
+    try {
+      const [logPage, summary] = await Promise.all([
+        fetchLogs(PAGE_SIZE, (page - 1) * PAGE_SIZE),
+        fetchStats(),
+      ])
+      setLogs(logPage.items)
+      setTotalLogs(logPage.total)
+      setSummary(summary)
+      setLastRefresh(new Date())
+      setError(null)
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Không thể tải lịch sử dự đoán.')
+    } finally {
+      setLoading(false)
+    }
+  }, [page])
 
   // Load lần đầu (có loading indicator)
   useEffect(() => { load(false) }, [load])
@@ -103,13 +119,13 @@ export default function LogViewer() {
     return () => clearInterval(id)
   }, [load])
 
-  const totalPages = Math.ceil(logs.length / PAGE_SIZE)
-  const pageData   = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(totalLogs / PAGE_SIZE))
+  const pageData   = logs
 
-  const stats = {
-    clean:     logs.filter(l => l.label === 'CLEAN').length,
-    offensive: logs.filter(l => l.label === 'OFFENSIVE').length,
-    hate:      logs.filter(l => l.label === 'HATE').length,
+  const labelCounts = {
+    clean:     summary?.labels.CLEAN ?? 0,
+    offensive: summary?.labels.OFFENSIVE ?? 0,
+    hate:      summary?.labels.HATE ?? 0,
   }
 
   return (
@@ -126,12 +142,14 @@ export default function LogViewer() {
         </div>
       </div>
 
+      {error && <div className="error-box">⚠️ Không tải được dữ liệu API: {error}</div>}
+
       {/* Summary cards */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         {([
-          { key: 'CLEAN',     count: stats.clean,     label: '✅ Clean'     },
-          { key: 'OFFENSIVE', count: stats.offensive, label: '⚠️ Offensive' },
-          { key: 'HATE',      count: stats.hate,      label: '🚫 Hate'      },
+          { key: 'CLEAN',     count: labelCounts.clean,     label: '✅ Clean'     },
+          { key: 'OFFENSIVE', count: labelCounts.offensive, label: '⚠️ Offensive' },
+          { key: 'HATE',      count: labelCounts.hate,      label: '🚫 Hate'      },
         ] as const).map(s => (
           <div key={s.key} className="card" style={{ padding: '12px 20px', display: 'flex', gap: 10, alignItems: 'center' }}>
             <span className={`badge badge-${s.key}`}>{s.label}</span>
@@ -140,7 +158,7 @@ export default function LogViewer() {
         ))}
         <div className="card" style={{ padding: '12px 20px', display: 'flex', gap: 10, alignItems: 'center' }}>
           <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>📊 Tổng</span>
-          <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{logs.length}</span>
+          <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{summary?.total ?? 0}</span>
         </div>
       </div>
 
@@ -150,7 +168,7 @@ export default function LogViewer() {
           <span className="toolbar-info">
             {loading
               ? 'Đang tải...'
-              : `${logs.length} kết quả · Trang ${page}/${Math.max(1, totalPages)}`
+              : `${totalLogs} kết quả · Trang ${page}/${totalPages}`
             }
           </span>
           <button className="btn btn-outline" onClick={() => load(false)} disabled={loading} id="btn-refresh">
@@ -171,8 +189,8 @@ export default function LogViewer() {
                     <th>#</th>
                     <th>Nội dung bình luận</th>
                     <th>Nhãn</th>
-                    <th>Prob T1</th>
-                    <th>Prob T2</th>
+                    <th>Score T1</th>
+                    <th>Score T2</th>
                     <th>Tier</th>
                     <th>Latency</th>
                     <th>Thời gian</th>
@@ -196,15 +214,17 @@ export default function LogViewer() {
                       <td className="col-latency">{log.latency_ms}ms</td>
                       <td className="col-ts">{formatTime(log.timestamp)}</td>
                       <td className="col-url">
-                        <a
-                          href={log.source_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          title={log.source_url}
-                          onClick={e => e.stopPropagation()}
-                        >
-                          {log.source_url.replace('https://', '')}
-                        </a>
+                        {log.source_url ? (
+                          <a
+                            href={log.source_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={log.source_url}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            {log.source_url.replace('https://', '')}
+                          </a>
+                        ) : '—'}
                       </td>
                     </tr>
                   ))}
