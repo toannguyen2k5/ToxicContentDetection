@@ -10,8 +10,14 @@ venv/
 env/
 dashboard/node_modules/
 dashboard/build/
+dashboard/dist/
 extension/
 *.ipynb
 *.log
 .DS_Store
 .env
+# Model files — Qwen chạy trên host qua Ollama, không cần copy vào container
+src/tier3_qwen/models/
+*.gguf
+*.bin
+*.safetensors

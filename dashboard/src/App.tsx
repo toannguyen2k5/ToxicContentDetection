@@ -1,18 +1,20 @@
 import { useState } from 'react'
-import LogViewer from './components/LogViewer'
-import ModelTester from './components/ModelTester'
-import ModelStats from './components/ModelStats'
-import Charts from './components/Charts'
-import Settings from './components/Settings'
+import LogViewer     from './components/LogViewer'
+import ModelTester   from './components/ModelTester'
+import ModelStats    from './components/ModelStats'
+import Charts        from './components/Charts'
+import Settings      from './components/Settings'
+import ExtensionLogs from './components/ExtensionLogs'
 
-type Page = 'logs' | 'tester' | 'stats' | 'charts' | 'settings'
+type Page = 'logs' | 'extension' | 'tester' | 'stats' | 'charts' | 'settings'
 
 const NAV_ITEMS: { id: Page; icon: string; label: string; sprint: string | null }[] = [
-  { id: 'logs',     icon: '📋', label: 'Log Viewer',    sprint: null },
-  { id: 'tester',   icon: '🧪', label: 'Model Tester',  sprint: null },
-  { id: 'stats',    icon: '📊', label: 'Model Stats',   sprint: 'S6' },
-  { id: 'charts',   icon: '📈', label: 'Charts',        sprint: 'S6' },
-  { id: 'settings', icon: '⚙️', label: 'Settings',      sprint: 'S7' },
+  { id: 'logs',      icon: '📋', label: 'Log Viewer',      sprint: null  },
+  { id: 'extension', icon: '📡', label: 'Extension Logs',  sprint: null  },
+  { id: 'tester',    icon: '🧪', label: 'Model Tester',    sprint: null  },
+  { id: 'stats',     icon: '📊', label: 'Model Stats',     sprint: 'S6'  },
+  { id: 'charts',    icon: '📈', label: 'Charts',          sprint: 'S6'  },
+  { id: 'settings',  icon: '⚙️', label: 'Settings',        sprint: 'S7'  },
 ]
 
 export default function App() {
@@ -20,11 +22,12 @@ export default function App() {
 
   const renderPage = () => {
     switch (page) {
-      case 'logs':     return <LogViewer />
-      case 'tester':   return <ModelTester />
-      case 'stats':    return <ModelStats />
-      case 'charts':   return <Charts />
-      case 'settings': return <Settings />
+      case 'logs':      return <LogViewer />
+      case 'extension': return <ExtensionLogs />
+      case 'tester':    return <ModelTester />
+      case 'stats':     return <ModelStats />
+      case 'charts':    return <Charts />
+      case 'settings':  return <Settings />
     }
   }
 
@@ -42,10 +45,7 @@ export default function App() {
             <button
               key={item.id}
               id={`nav-${item.id}`}
-              className={[
-                'nav-item',
-                page === item.id ? 'active' : '',
-              ].join(' ')}
+              className={['nav-item', page === item.id ? 'active' : ''].join(' ')}
               onClick={() => setPage(item.id)}
             >
               <span className="nav-icon">{item.icon}</span>
@@ -58,7 +58,7 @@ export default function App() {
         </nav>
 
         <div className="sidebar-footer">
-          <div>PBL6 — Nhóm phát triển</div>
+          <div>PBL6 · Nhóm phát triển</div>
           <div className="status-bar" style={{ marginTop: 6 }}>
             <span className="dot" />
             <span>API localhost:8000</span>

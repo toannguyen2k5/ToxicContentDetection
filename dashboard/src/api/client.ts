@@ -1,7 +1,10 @@
 /**
  * [Owner: C] — Task C-18
- * API client: định nghĩa TypeScript interfaces + gọi FastAPI.
- * Fallback về mock data khi FastAPI chưa sẵn sàng (giai đoạn demo).
+ * API client: TypeScript interfaces + gọi FastAPI.
+ * - fetchLogs()          → LogViewer (mock data cho đến khi A thêm /training-logs)
+ * - fetchExtensionLogs() → ExtensionLogs tab (real-time từ extension, endpoint mới)
+ * - fetchExtensionStats()→ stats header (clean/offensive/hate counts)
+ * - clearExtensionLogs() → reset log khi demo
  */
 import axios from 'axios'
 
@@ -9,7 +12,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 const api = axios.create({ baseURL: API_BASE, timeout: 8000 })
 
-// ─── TypeScript Interfaces (đồng bộ với log schema A-19c) ────────────────
+// ─── TypeScript Interfaces ────────────────────────────────────────────────
 export interface LogEntry {
   id: number
   text: string
@@ -22,7 +25,14 @@ export interface LogEntry {
   timestamp: string
 }
 
-// ─── Mock data (20 comment thực tế — dùng khi FastAPI chưa chạy) ─────────
+export interface LogStats {
+  total: number
+  clean: number
+  offensive: number
+  hate: number
+}
+
+// ─── Mock data (LogViewer — 20 comment mẫu, dùng khi chưa có /training-logs) ──
 export const MOCK_LOGS: LogEntry[] = [
   { id:  1, text: 'gg team chơi hay vậy! top 1 server luôn',               label: 'CLEAN',     prob_t1: 0.97, prob_t2: 0.00, tier_used: 1, latency_ms:  7, source_url: 'https://youtu.be/abc111', timestamp: '2026-09-12T08:01:00' },
   { id:  2, text: 'nước cờ đó hay ghê, học hỏi được nhiều từ bạn',         label: 'CLEAN',     prob_t1: 0.95, prob_t2: 0.00, tier_used: 1, latency_ms:  6, source_url: 'https://youtu.be/abc112', timestamp: '2026-09-12T08:03:10' },
@@ -41,23 +51,58 @@ export const MOCK_LOGS: LogEntry[] = [
   { id: 15, text: 'mặt ngu như bò mà cũng đòi top 1, cười vãi',           label: 'OFFENSIVE', prob_t1: 0.79, prob_t2: 0.87, tier_used: 2, latency_ms:205, source_url: 'https://youtu.be/abc127', timestamp: '2026-09-12T08:34:20' },
   { id: 16, text: 'anh chơi được đấy nhưng mà giải thích hơi dài',        label: 'CLEAN',     prob_t1: 0.55, prob_t2: 0.72, tier_used: 2, latency_ms:185, source_url: 'https://youtu.be/abc119', timestamp: '2026-09-12T08:36:45' },
   { id: 17, text: 'tụi miền Bắc chơi game kiểu đó không ai chịu được',    label: 'HATE',      prob_t1: 0.71, prob_t2: 0.45, tier_used: 3, latency_ms:4200, source_url: 'https://youtu.be/abc131', timestamp: '2026-09-12T08:39:10' },
-  { id: 18, text: 'con gái chơi game thì bao giờ giỏi, về nhà nấu cơm đi', label: 'HATE',     prob_t1: 0.68, prob_t2: 0.51, tier_used: 3, latency_ms:3900, source_url: 'https://youtu.be/abc132', timestamp: '2026-09-12T08:41:35' },
+  { id: 18, text: 'con gái chơi game thì bao giờ giỏi, về nhà nấu cơm đi', label: 'HATE',    prob_t1: 0.68, prob_t2: 0.51, tier_used: 3, latency_ms:3900, source_url: 'https://youtu.be/abc132', timestamp: '2026-09-12T08:41:35' },
   { id: 19, text: 'dân tỉnh lẻ chơi game toàn hại đồng đội, báo cáo hết', label: 'HATE',      prob_t1: 0.65, prob_t2: 0.48, tier_used: 3, latency_ms:4100, source_url: 'https://youtu.be/abc133', timestamp: '2026-09-12T08:44:00' },
-  { id: 20, text: 'stream này hay thiệt, lần sau làm thêm về tướng này nha', label: 'CLEAN',   prob_t1: 0.97, prob_t2: 0.00, tier_used: 1, latency_ms:  6, source_url: 'https://youtu.be/abc120', timestamp: '2026-09-12T08:46:25' },
+  { id: 20, text: 'stream này hay thiệt, lần sau làm thêm về tướng này nha', label: 'CLEAN',  prob_t1: 0.97, prob_t2: 0.00, tier_used: 1, latency_ms:  6, source_url: 'https://youtu.be/abc120', timestamp: '2026-09-12T08:46:25' },
 ]
 
 // ─── API calls ────────────────────────────────────────────────────────────
 
 /**
- * Lấy danh sách log từ FastAPI.
+ * LogViewer: lấy data từ labels_agreed.csv qua FastAPI.
  * Fallback về MOCK_LOGS nếu API chưa sẵn sàng.
  */
-export async function fetchLogs(): Promise<LogEntry[]> {
+export async function fetchLogs(
+  limit = 200,
+  skip  = 0,
+  label = 'all'
+): Promise<LogEntry[]> {
   try {
-    const res = await api.get<LogEntry[]>('/api/text/logs')
-    return res.data
+    const res = await api.get<{ logs: LogEntry[] }>(
+      `/api/text/training-logs?limit=${limit}&skip=${skip}&label=${label}`
+    )
+    if (res.data?.logs && res.data.logs.length > 0) return res.data.logs
+    return MOCK_LOGS
   } catch {
     // API chưa chạy → dùng mock data để demo
     return MOCK_LOGS
   }
+}
+
+/**
+ * ExtensionLogs: lấy real-time classification logs từ extension.
+ * Trả về {logs, total} — gọi /api/text/logs thật sự.
+ */
+export async function fetchExtensionLogs(
+  limit = 100
+): Promise<{ logs: LogEntry[]; total: number }> {
+  const res = await api.get<{ logs: LogEntry[]; total: number }>(
+    `/api/text/logs?limit=${limit}`
+  )
+  return res.data
+}
+
+/**
+ * ExtensionLogs stats: tổng/clean/offensive/hate counts.
+ */
+export async function fetchExtensionStats(): Promise<LogStats> {
+  const res = await api.get<LogStats>('/api/text/logs/stats')
+  return res.data
+}
+
+/**
+ * Xóa toàn bộ extension logs (dùng khi demo muốn reset màn hình sạch).
+ */
+export async function clearExtensionLogs(): Promise<void> {
+  await api.delete('/api/text/logs')
 }

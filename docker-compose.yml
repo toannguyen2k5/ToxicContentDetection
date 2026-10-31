@@ -17,9 +17,10 @@ services:
       # (Docker Desktop Windows/Mac đã tự có sẵn, dòng này chỉ cần thiết nếu chạy trên Linux)
       - "host.docker.internal:host-gateway"
     environment:
-      - QWEN_API_KEY=${QWEN_API_KEY}
-      - QWEN_API_URL=${QWEN_API_URL}
-      - QWEN_MODEL_NAME=${QWEN_MODEL_NAME}
+      # Ollama chạy trên host → API container gọi qua host.docker.internal
+      - QWEN_API_URL=${QWEN_API_URL:-http://host.docker.internal:11434/v1/chat/completions}
+      - QWEN_MODEL_NAME=${QWEN_MODEL_NAME:-qwen3-4b-local}
+      - QWEN_API_KEY=${QWEN_API_KEY:-not-needed}
     restart: unless-stopped
     networks:
       - pbl6-net
@@ -50,7 +51,7 @@ services:
       context: .
       dockerfile: docker/dashboard.Dockerfile
       args:
-        REACT_APP_API_URL: http://localhost:8000
+        VITE_API_URL: http://localhost:8000
     container_name: pbl6-dashboard
     ports:
       - "3000:80"

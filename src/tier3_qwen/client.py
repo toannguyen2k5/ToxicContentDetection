@@ -47,10 +47,11 @@ async def classify_with_qwen(text: str) -> dict:
         "model": QWEN_MODEL_NAME,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
-        "max_tokens": 150,
+        "max_tokens": 80,       # JSON output chỉ cần ~50 tokens
+        "keep_alive": -1,      # Giữ model trong VRAM không bị unload
     }
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=90.0) as client:
         for attempt in range(2):  # thử tối đa 2 lần (retry 1 lần)
             try:
                 resp = await client.post(
@@ -132,3 +133,45 @@ def apply_conflict_resolution(tier2_result: dict, qwen_result: dict) -> dict:
         return qwen_result
 
     return tier2_result
+
+
+# ---------------------------------------------------------------------------
+# C-09 (bonus): Sync wrapper — dùng trong pipeline.py (sync FastAPI route)
+# Dùng httpx.Client (sync) thay vì AsyncClient để tránh xung đột event loop.
+# ---------------------------------------------------------------------------
+def classify_with_qwen_sync(text: str) -> dict:
+    """
+    Phiên bản ĐỒNG BỘ của classify_with_qwen.
+    Dùng httpx.Client (không phải AsyncClient) để gọi được từ sync context
+    (pipeline.py, FastAPI sync route handler) mà không cần asyncio.run().
+
+    Returns:
+        {label, confidence, reason, tier: 3}  khi thành công
+        {label: "unknown", confidence: 0.0, tier: 3, error: str}  khi lỗi
+    """
+    prompt = TOXIC_CLASSIFICATION_PROMPT.format(text=text)
+    payload = {
+        "model": QWEN_MODEL_NAME,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0,
+        "max_tokens": 80,       # JSON output chỉ cần ~50 tokens
+        "keep_alive": -1,      # Giữ model trong VRAM không bị unload
+        "stream": False,
+    }
+
+    for attempt in range(2):
+        try:
+            with httpx.Client(timeout=60.0) as client:
+                resp = client.post(QWEN_API_URL, json=payload, headers=_HEADERS)
+                resp.raise_for_status()
+                raw = resp.json()["choices"][0]["message"]["content"].strip()
+                return _parse_response(raw)
+        except Exception as e:
+            if attempt == 1:
+                return {
+                    "label": "unknown",
+                    "confidence": 0.0,
+                    "tier": 3,
+                    "error": str(e),
+                }
+
