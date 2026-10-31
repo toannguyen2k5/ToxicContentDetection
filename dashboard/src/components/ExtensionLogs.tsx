@@ -5,10 +5,11 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  fetchExtensionLogs,
-  fetchExtensionStats,
-  clearExtensionLogs,
+  fetchLogs,
+  fetchStats,
   LogEntry,
+  LogPage,
+  DashboardStats,
   LogStats,
 } from '../api/client'
 
@@ -49,10 +50,10 @@ function StatCard({ value, label, cls }: { value: number; label: string; cls: st
 export default function ExtensionLogs() {
   const [logs,    setLogs]    = useState<LogEntry[]>([])
   const [stats,   setStats]   = useState<LogStats>({ total: 0, clean: 0, offensive: 0, hate: 0 })
+  const [total,   setTotal]   = useState(0)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
   const [page,    setPage]    = useState(1)
-  const [lastSeen, setLastSeen] = useState<number>(0)   // newest id seen
   const [clearing, setClearing] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -60,19 +61,24 @@ export default function ExtensionLogs() {
     if (!silent) setLoading(true)
     setError(null)
     try {
-      const [{ logs: newLogs }, newStats] = await Promise.all([
-        fetchExtensionLogs(200),
-        fetchExtensionStats(),
+      const [logPage, rawStats] = await Promise.all([
+        fetchLogs(PAGE_SIZE, (page - 1) * PAGE_SIZE),
+        fetchStats(),
       ])
-      setLogs(newLogs)
-      setStats(newStats)
-      if (newLogs.length > 0) setLastSeen(newLogs[0].id)
+      setLogs(logPage.items)
+      setTotal(logPage.total)
+      setStats({
+        total:     rawStats.total,
+        clean:     rawStats.labels?.CLEAN     ?? 0,
+        offensive: rawStats.labels?.OFFENSIVE ?? 0,
+        hate:      rawStats.labels?.HATE      ?? 0,
+      })
     } catch (e) {
       setError('Không kết nối được API. Kiểm tra FastAPI đang chạy tại localhost:8000.')
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [])
+  }, [page])
 
   // First load
   useEffect(() => {
@@ -88,16 +94,11 @@ export default function ExtensionLogs() {
   }, [load])
 
   // Pagination
-  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE))
-  const paginated  = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const handleClear = async () => {
-    if (!window.confirm('Xóa toàn bộ extension logs?')) return
-    setClearing(true)
-    await clearExtensionLogs()
-    await load(false)
-    setPage(1)
-    setClearing(false)
+    // Không clear SQLite history — chỉ để placeholder
+    alert('Lịch sử được lưu trong SQLite. Liên hệ admin để xóa.')
   }
 
   // ─── Render ─────────────────────────────────────────────────────────────
