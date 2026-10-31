@@ -1,20 +1,20 @@
 """
 [Owner: A + C]
 Route /api/text - endpoint chính extension và dashboard gọi tới.
-C-update: thêm latency đo thực, lưu log_store, GET /logs, GET /logs/stats.
-C-update2: GET /training-logs → đọc labels_agreed.csv cho LogViewer.
+C-update: GET /training-logs → đọc labels_agreed.csv cho LogViewer tab.
 """
 import csv
 import hashlib
-import time
-from functools import lru_cache
+import json
 from pathlib import Path
+from time import perf_counter
 from typing import Optional
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from api import cache, pipeline, batch, log_store
+from api import cache, history, pipeline
+from src.tier3_qwen.client import QwenServiceError
 
 router = APIRouter()
 
@@ -24,138 +24,131 @@ _LABEL_MAP = {"clean": "CLEAN", "offensive": "OFFENSIVE", "hate": "HATE"}
 
 class PredictRequest(BaseModel):
     text: str
+    quote_text: Optional[str] = None
+    post_title: Optional[str] = None
+    source_url: Optional[str] = None
 
 
 class PredictBatchRequest(BaseModel):
     texts: list[str]
 
 
-def _cache_key(text: str) -> str:
-    return "tcd:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
+def _cache_key(text: str, quote_text: Optional[str] = None) -> str:
+    payload = json.dumps(
+        [text, quote_text], ensure_ascii=False, separators=(",", ":")
+    )
+    return "tcd:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 @router.post("/predict")
-def predict(
-    req: PredictRequest,
-    x_source_url: Optional[str] = Header(default=""),
-):
+def predict(req: PredictRequest):
     """
-    Endpoint mà Chrome extension gọi cho từng đoạn text quét được.
-    Header X-Source-URL: URL trang hiện tại (extension tự set).
-    Trả về: {text, toxic, label, score, tier}
-    Tự động lưu log → dashboard Extension Logs tab.
+    Endpoint mà Chrome extension gọi cho từng đoạn text quét được trên trang.
+    Trả về nhãn 3 lớp, kết quả tương thích extension và thời gian từng tier.
     """
-    key = _cache_key(req.text)
-    cached = cache.get(key)
-    if cached is not None:
-        # Cache hit → vẫn log (có thể comment trùng từ nhiều trang)
-        log_store.add_log(
-            text=req.text,
-            label=cached["label"],
-            score=cached["score"],
-            tier=cached["tier"],
-            latency_ms=0,          # từ cache → latency ≈ 0
-            source_url=x_source_url or "",
-        )
-        return cached
-
-    t0 = time.perf_counter()
-    result = pipeline.predict_text(req.text)
-    latency_ms = int((time.perf_counter() - t0) * 1000)
-
-    cache.set(key, result)
-
-    log_store.add_log(
-        text=req.text,
-        label=result["label"],
-        score=result["score"],
-        tier=result["tier"],
-        latency_ms=latency_ms,
-        source_url=x_source_url or "",
+    key = _cache_key(req.text, req.quote_text)
+    started_at = perf_counter()
+    result = cache.get(key)
+    if result is None:
+        try:
+            result = pipeline.predict_text(req.text, req.quote_text or "")
+        except QwenServiceError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        cache.set(key, result)
+    latency_ms = round((perf_counter() - started_at) * 1000, 2)
+    history.record_prediction(
+        req.text,
+        result,
+        latency_ms,
+        req.quote_text,
+        req.post_title,
+        req.source_url,
     )
-
+    result = {**result, "latency_ms": latency_ms}
+    if req.quote_text is not None or req.post_title is not None:
+        result = {
+            **result,
+            **({} if req.quote_text is None else {"quote_text": req.quote_text}),
+            **({} if not req.post_title else {"post_title": req.post_title}),
+        }
     return result
 
 
 @router.post("/predict_batch")
 def predict_batch_endpoint(req: PredictBatchRequest):
-    """
-    Endpoint cho dashboard quét log hàng loạt.
-    Trả về: {"results": [{text, toxic, label, score, tier}, ...]}
-    """
-    results = batch.predict_batch(req.texts)
+    """Endpoint cho dashboard quét log hàng loạt."""
+    try:
+        results = []
+        for text in req.texts:
+            started_at = perf_counter()
+            result = pipeline.predict_text(text)
+            latency_ms = round((perf_counter() - started_at) * 1000, 2)
+            result = {**result, "latency_ms": latency_ms}
+            history.record_prediction(text, result, latency_ms)
+            results.append(result)
+    except QwenServiceError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {"results": results}
 
 
 @router.get("/logs")
-def get_logs(limit: int = 100):
-    """
-    [C] Trả về danh sách log classify gần nhất từ extension.
-    Dashboard dùng endpoint này cho Extension Logs tab.
-    Query param: ?limit=N (mặc định 100, tối đa 500)
-    """
-    entries = log_store.get_logs(limit=min(limit, 500))
-    return {
-        "logs":  entries,
-        "total": len(entries),
-    }
+def get_prediction_logs(
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    """[A] Extension Logs: lịch sử predict từ SQLite (persistent)."""
+    return history.get_logs(limit=limit, offset=offset)
 
 
-@router.get("/logs/stats")
-def get_logs_stats():
-    """
-    [C] Thống kê nhanh: tổng / clean / offensive / hate.
-    Dashboard dùng để hiển thị header counters.
-    """
-    return log_store.get_stats()
+@router.get("/stats")
+def get_prediction_stats():
+    """[A] Thống kê tổng hợp từ SQLite."""
+    return history.get_stats()
 
 
-@router.delete("/logs")
-def clear_logs():
-    """[C] Xóa toàn bộ log (dùng khi demo muốn reset)."""
-    log_store.clear()
-    return {"message": "Logs cleared"}
+@router.get("/charts")
+def get_prediction_charts(days: int = Query(default=7, ge=1, le=90)):
+    """[A] Dữ liệu charts theo ngày."""
+    return history.get_chart_data(days=days)
 
 
 # ---------------------------------------------------------------------------
-# Training data — đọc labels_agreed.csv cho LogViewer
+# [C] Training data — đọc labels_agreed.csv cho LogViewer tab
 # ---------------------------------------------------------------------------
+_csv_cache: list[dict] | None = None
+
+
 def _load_csv() -> list[dict]:
-    """
-    Đọc labels_agreed.csv và convert sang LogEntry format.
-    Cache kết quả trong RAM sau lần đầu.
-    """
     if not CSV_PATH.exists():
         return []
-    rows = []
+    rows: list[dict] = []
     try:
         with open(CSV_PATH, encoding="utf-8", errors="replace") as f:
             reader = csv.DictReader(f)
             for i, row in enumerate(reader, start=1):
                 label = _LABEL_MAP.get(row.get("label", "").strip().lower(), "CLEAN")
-                # Normalize timestamp: cắt timezone offset
                 ts = row.get("posted_at", "").strip()
                 if "+" in ts:
                     ts = ts[: ts.rfind("+")]
                 elif ts.endswith("Z"):
                     ts = ts[:-1]
+                text = row.get("text", "").strip()
+                if not text:
+                    continue
                 rows.append({
                     "id":         i,
-                    "text":       row.get("text", "").strip(),
+                    "text":       text,
                     "label":      label,
-                    "prob_t1":    0.0,
-                    "prob_t2":    0.0,
+                    "prob_t1":    None,
+                    "prob_t2":    None,
                     "tier_used":  1,
                     "latency_ms": 0,
-                    "source_url": row.get("source_url", "").strip(),
+                    "source_url": row.get("source_url", "").strip() or None,
                     "timestamp":  ts,
                 })
     except Exception:
         pass
     return rows
-
-
-_csv_cache: list[dict] | None = None
 
 
 def _get_csv_data() -> list[dict]:
@@ -167,22 +160,22 @@ def _get_csv_data() -> list[dict]:
 
 @router.get("/training-logs")
 def get_training_logs(
-    limit: int = 100,
-    skip:  int = 0,
+    limit: int = Query(default=100, ge=1, le=500),
+    skip:  int = Query(default=0, ge=0),
     label: str = "all",
 ):
     """
-    [C] LogViewer: trả về data từ labels_agreed.csv.
+    [C] LogViewer: trả về data từ labels_agreed.csv (33k rows thật).
     Query params:
-      - limit: số rows trả về (mặc định 100)
-      - skip:  bỏ qua N rows đầu (dùng cho pagination)
+      - limit: số rows trả về (mặc định 100, tối đa 500)
+      - skip:  bỏ qua N rows đầu (server-side pagination)
       - label: "all" | "clean" | "offensive" | "hate"
     """
     rows = _get_csv_data()
     if label.lower() != "all":
         rows = [r for r in rows if r["label"] == label.upper()]
     total  = len(rows)
-    sliced = rows[skip: skip + min(limit, 500)]
+    sliced = rows[skip: skip + limit]
     stats  = {
         "total":     total,
         "clean":     sum(1 for r in rows if r["label"] == "CLEAN"),

@@ -1,0 +1,8 @@
+{
+  "model": "PhoBERT_SharedEncoder_CrossAttention_Level3",
+  "checkpoint_epoch": 4,
+  "test_loss": 0.23198785791155424,
+  "accuracy": 0.9688109161793372,
+  "macro_f1": 0.9680629503285868,
+  "weighted_f1": 0.9688179751270213
+}

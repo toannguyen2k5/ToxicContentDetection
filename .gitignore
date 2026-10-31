@@ -6,6 +6,9 @@ venv/
 data/raw/*
 data/processed/*
 data/labeled/*
+data/*.sqlite3
+data/*.sqlite3-shm
+data/*.sqlite3-wal
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/labeled/.gitkeep
@@ -14,6 +17,8 @@ src/models/tier2_bert/saved/*
 image_service/saved/*
 !**/saved/.gitkeep
 src/tier3_qwen/models/
+src/preprocessing/vncorenlp/
 dashboard/node_modules/
 dashboard/build/
 .ipynb_checkpoints/
+src/tier3_qwen/

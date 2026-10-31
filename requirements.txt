@@ -5,9 +5,15 @@ python-dotenv==1.0.1
 requests==2.32.3
 pandas==2.2.3
 numpy==1.26.4
-scikit-learn==1.5.2
+scikit-learn==1.6.1
 joblib==1.4.2
-# BERT tier - có thể pin version torch phù hợp hardware của bạn (CPU/GPU)
+# Tier 2 PhoBERT cross-attention
 torch==2.4.1
 transformers==4.44.2
 sentencepiece==0.2.0
+httpx==0.27.2
+underthesea==6.8.4
+py_vncorenlp==0.1.4
+httpx==0.27.2
+underthesea==6.8.4
+py_vncorenlp==0.1.4

@@ -4,6 +4,9 @@ FastAPI entrypoint - chạy trên localhost:8000
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from api.routes import text as text_routes
 

@@ -1,3 +1,4 @@
+
 version: "3.9"
 
 services:
@@ -11,19 +12,47 @@ services:
     volumes:
       - ./src/models/tier1_svm/saved:/app/src/models/tier1_svm/saved:ro
       - ./src/models/tier2_bert/saved:/app/src/models/tier2_bert/saved:ro
+      - ./src/preprocessing/vncorenlp:/app/src/preprocessing/vncorenlp
       - ./data:/app/data
     extra_hosts:
-      # Cho container gọi được ra máy host qua "host.docker.internal"
-      # (Docker Desktop Windows/Mac đã tự có sẵn, dòng này chỉ cần thiết nếu chạy trên Linux)
       - "host.docker.internal:host-gateway"
     environment:
-      # Ollama chạy trên host → API container gọi qua host.docker.internal
+      # [C] Ollama chạy trên HOST → API container gọi qua host.docker.internal
+      # Nếu muốn chạy Qwen trong Docker, đổi URL sang http://qwen:8000/v1/chat/completions
       - QWEN_API_URL=${QWEN_API_URL:-http://host.docker.internal:11434/v1/chat/completions}
       - QWEN_MODEL_NAME=${QWEN_MODEL_NAME:-qwen3-4b-local}
       - QWEN_API_KEY=${QWEN_API_KEY:-not-needed}
     restart: unless-stopped
     networks:
       - pbl6-net
+
+  # [A] Qwen trong Docker (llama-cpp-python) — tắt mặc định, bật khi không có Ollama
+  # Để dùng: uncomment service này, comment QWEN_API_URL ở api service,
+  #           thêm depends_on: qwen vào api service, đặt GGUF vào src/tier3_qwen/weights/
+  # qwen:
+  #   image: ghcr.io/abetlen/llama-cpp-python:latest
+  #   container_name: pbl6-qwen
+  #   ports:
+  #     - "11434:8000"
+  #   volumes:
+  #     - ./src/tier3_qwen/weights:/models:ro
+  #   entrypoint: ["python", "-m", "llama_cpp.server"]
+  #   command:
+  #     - --model
+  #     - /models/Qwen3-4B-Q4_K_M.gguf
+  #     - --host
+  #     - 0.0.0.0
+  #     - --port
+  #     - "8000"
+  #     - --n_ctx
+  #     - "4096"
+  #     - --n_threads
+  #     - "8"
+  #     - --n_gpu_layers
+  #     - "0"
+  #   restart: unless-stopped
+  #   networks:
+  #     - pbl6-net
 
   image_service:
     build:
@@ -37,14 +66,6 @@ services:
     restart: unless-stopped
     networks:
       - pbl6-net
-    # GPU (optional, cần nvidia-container-toolkit trên host):
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
 
   dashboard:
     build:
