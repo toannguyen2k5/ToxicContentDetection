@@ -1,7 +1,8 @@
-﻿/**
- * [Owner: C] â€” Task C-20, C-26
+/**
+ * [Owner: C] – Task C-20, C-26
  * Charts: Pie + Bar + Tier distribution + Latency per tier.
- * DÃ¹ng Recharts trong dark glassmorphism theme.
+ * Dùng Recharts trong dark glassmorphism theme.
+ * Fix: encoding UTF-8 chuẩn (không mojibake)
  */
 import { useEffect, useState } from 'react'
 import {
@@ -12,17 +13,17 @@ import {
 } from 'recharts'
 import { fetchCharts, fetchStats, fetchDatasetStats, type DashboardCharts, type DashboardStats, type DatasetStats } from '../api/client'
 
-// â”€â”€â”€ Color tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Color tokens ───────────────────────────────────────────────────────────
 const COLORS = {
   clean:     '#51cf66',
-  offensive: '#ffa94d',
+  offensive: '#ffd43b',
   hate:      '#ff6b6b',
   tier1:     '#74c0fc',
   tier2:     '#da77f2',
   tier3:     '#ffd43b',
 }
 
-// â”€â”€â”€ Custom dark tooltip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Custom dark tooltip ─────────────────────────────────────────────────────
 const DarkTooltip = ({ active, payload, label }: {
   active?: boolean
   payload?: { name: string; value: number; color: string }[]
@@ -45,7 +46,7 @@ const DarkTooltip = ({ active, payload, label }: {
   )
 }
 
-// â”€â”€â”€ Stat Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Stat Card ───────────────────────────────────────────────────────────────
 function StatCard({ label, value, color, sub }: {
   label: string; value: string | number; color: string; sub?: string
 }) {
@@ -78,7 +79,7 @@ export default function Charts() {
         const [c, s] = await Promise.all([fetchCharts(), fetchStats()])
         if (active) { setChartData(c); setStats(s); setError(null) }
       } catch (requestError) {
-        if (active) setError(requestError instanceof Error ? requestError.message : 'KhÃ´ng táº£i Ä‘Æ°á»£c dá»¯ liá»‡u.')
+        if (active) setError(requestError instanceof Error ? requestError.message : 'Không tải được dữ liệu.')
       }
     }
     void load()
@@ -86,35 +87,35 @@ export default function Charts() {
     return () => { active = false; window.clearInterval(interval) }
   }, [])
 
-  // Load dataset stats khi chuyá»ƒn sang tab Dataset
+  // Load dataset stats khi chuyển sang tab Dataset
   useEffect(() => {
     if (tab !== 'dataset' || dsStats) return
     setDsLoading(true)
     fetchDatasetStats().then(d => { setDsStats(d); setDsLoading(false) })
   }, [tab, dsStats])
 
-  // â”€â”€ Pie data: label distribution
+  // ── Pie data: label distribution
   const pieData = chartData ? [
     { name: 'Clean',     value: chartData.labels.CLEAN,     color: COLORS.clean },
     { name: 'Offensive', value: chartData.labels.OFFENSIVE, color: COLORS.offensive },
     { name: 'Hate',      value: chartData.labels.HATE,      color: COLORS.hate },
   ] : []
 
-  // â”€â”€ Bar data: daily volume
+  // ── Bar data: daily volume
   const barData = chartData?.daily.map(item => ({
     day: new Date(`${item.date}T00:00:00`).toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric' }),
     clean: item.clean, offensive: item.offensive, hate: item.hate,
   })) ?? []
 
-  // â”€â”€ Tier usage bar data
+  // ── Tier usage bar data
   const tierData = stats?.tiers ? [
-    { name: 'Táº§ng 1 Â· SVM',     count: stats.tiers[1]?.count ?? 0, avg: Math.round(stats.tiers[1]?.avg_latency_ms ?? 0), fill: COLORS.tier1 },
-    { name: 'Táº§ng 2 Â· PhoBERT', count: stats.tiers[2]?.count ?? 0, avg: Math.round(stats.tiers[2]?.avg_latency_ms ?? 0), fill: COLORS.tier2 },
-    { name: 'Táº§ng 3 Â· Qwen',    count: stats.tiers[3]?.count ?? 0, avg: Math.round(stats.tiers[3]?.avg_latency_ms ?? 0), fill: COLORS.tier3 },
+    { name: 'Tầng 1 · SVM',     count: stats.tiers[1]?.count ?? 0, avg: Math.round(stats.tiers[1]?.avg_latency_ms ?? 0), fill: COLORS.tier1 },
+    { name: 'Tầng 2 · PhoBERT', count: stats.tiers[2]?.count ?? 0, avg: Math.round(stats.tiers[2]?.avg_latency_ms ?? 0), fill: COLORS.tier2 },
+    { name: 'Tầng 3 · Qwen',    count: stats.tiers[3]?.count ?? 0, avg: Math.round(stats.tiers[3]?.avg_latency_ms ?? 0), fill: COLORS.tier3 },
   ] : []
 
   const total = stats?.total ?? chartData?.total ?? 0
-  const avgLatency = stats?.avg_latency_ms ? `${Math.round(stats.avg_latency_ms)}ms` : 'â€”'
+  const avgLatency = stats?.avg_latency_ms ? `${Math.round(stats.avg_latency_ms)}ms` : '—'
 
   // Tab style helper
   const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -129,30 +130,30 @@ export default function Charts() {
   return (
     <div>
       <div className="page-header">
-        <h1>ðŸ“ˆ Charts</h1>
-        <p>Trá»±c quan hÃ³a runtime predictions vÃ  thá»‘ng kÃª dataset gÃ¡n nhÃ£n</p>
+        <h1>📈 Charts</h1>
+        <p>Trực quan hóa runtime predictions và thống kê dataset gán nhãn</p>
       </div>
 
-      {/* â”€â”€ Tab switcher â”€â”€ */}
+      {/* ── Tab switcher ── */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         <button style={tabStyle(tab === 'runtime')} onClick={() => setTab('runtime')}>
-          âš¡ Runtime Predictions
+          ⚡ Runtime Predictions
         </button>
         <button style={tabStyle(tab === 'dataset')} onClick={() => setTab('dataset')}>
-          ðŸ“š Dataset (61,540 rows)
+          📚 Dataset (61,540 rows)
         </button>
       </div>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ══════════════════════════════════════════════════════
           TAB: RUNTIME
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ══════════════════════════════════════════════════════ */}
       {tab === 'runtime' && (
         <>
-          {error && <div className="error-box">âš ï¸ KhÃ´ng táº£i Ä‘Æ°á»£c dá»¯ liá»‡u API: {error}</div>}
+          {error && <div className="error-box">⚠️ Không tải được dữ liệu API: {error}</div>}
 
           {/* Stat cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-            <StatCard label="Tá»•ng dá»± Ä‘oÃ¡n" value={total.toLocaleString()} color="var(--accent)" sub="tá»« extension" />
+            <StatCard label="Tổng dự đoán" value={total.toLocaleString()} color="var(--accent)" sub="từ extension" />
             <StatCard label="Clean" value={(stats?.labels.CLEAN ?? 0).toLocaleString()} color={COLORS.clean}
               sub={total ? `${((( stats?.labels.CLEAN ?? 0) / total) * 100).toFixed(1)}%` : ''} />
             <StatCard label="Offensive" value={(stats?.labels.OFFENSIVE ?? 0).toLocaleString()} color={COLORS.offensive}
@@ -163,7 +164,7 @@ export default function Charts() {
           {/* Row 1: Pie + Daily bar */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 20, marginBottom: 20 }}>
             <div className="card">
-              <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>ðŸ·ï¸ Tá»· lá»‡ phÃ¢n loáº¡i tá»•ng thá»ƒ</div>
+              <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>🏷️ Tỷ lệ phân loại tổng thể</div>
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
                   <Pie data={pieData} cx="50%" cy="50%" innerRadius={65} outerRadius={100}
@@ -177,7 +178,7 @@ export default function Charts() {
               </ResponsiveContainer>
             </div>
             <div className="card">
-              <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>ðŸ“… LÆ°u lÆ°á»£ng quÃ©t 7 ngÃ y qua</div>
+              <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>📅 Lưu lượng quét 7 ngày qua</div>
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={barData} barSize={18}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
@@ -197,24 +198,24 @@ export default function Charts() {
           {stats && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
               <div className="card">
-                <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>âš¡ PhÃ¢n bá»‘ táº§ng xá»­ lÃ½ (sá»‘ request)</div>
+                <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>⚡ Phân bổ tầng xử lý (số request)</div>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={tierData} layout="vertical" barSize={24}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
                     <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
                     <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} width={130} />
                     <Tooltip content={<DarkTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-                    <Bar dataKey="count" name="Sá»‘ request" radius={[0, 6, 6, 0]}>
+                    <Bar dataKey="count" name="Số request" radius={[0, 6, 6, 0]}>
                       {tierData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
                 <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginTop: 8 }}>
-                  ðŸ’¡ Tier 1 nhiá»u nháº¥t = cascade dá»«ng sá»›m = hiá»‡u quáº£
+                  💡 Tier 1 nhiều nhất = cascade dừng sớm = hiệu quả
                 </div>
               </div>
               <div className="card">
-                <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>â±ï¸ Latency trung bÃ¬nh theo táº§ng (ms)</div>
+                <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>⏱️ Latency trung bình theo tầng (ms)</div>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={tierData} layout="vertical" barSize={24}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
@@ -227,7 +228,7 @@ export default function Charts() {
                   </BarChart>
                 </ResponsiveContainer>
                 <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginTop: 8 }}>
-                  ðŸ’¡ Tier 3 (Qwen) cháº­m nháº¥t do LLM inference
+                  💡 Tier 3 (Qwen) chậm nhất do LLM inference
                 </div>
               </div>
             </div>
@@ -236,7 +237,7 @@ export default function Charts() {
           {/* Hate radial */}
           {chartData && chartData.labels.HATE > 0 && (
             <div className="card" style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.9rem' }}>ðŸ”¥ Tá»· lá»‡ Hate Speech trong toxic</div>
+              <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.9rem' }}>🔥 Tỷ lệ Hate Speech trong toxic</div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 16 }}>Hate / (Offensive + Hate)</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
                 <ResponsiveContainer width={160} height={160}>
@@ -265,22 +266,22 @@ export default function Charts() {
 
           <div className="card">
             <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-              ðŸ“Š Tá»•ng dá»± Ä‘oÃ¡n tá»« extension:{' '}
+              📊 Tổng dự đoán từ extension:{' '}
               <strong style={{ color: 'var(--text-primary)' }}>{total.toLocaleString()} comment</strong>
-              {chartData?.total === 0 && ' Â· ChÆ°a cÃ³ dá»± Ä‘oÃ¡n nÃ o â€” hÃ£y dÃ¹ng Chrome extension Ä‘á»ƒ quÃ©t'}
+              {chartData?.total === 0 && ' · Chưa có dự đoán nào — hãy dùng Chrome extension để quét'}
             </div>
           </div>
         </>
       )}
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ══════════════════════════════════════════════════════
           TAB: DATASET
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ══════════════════════════════════════════════════════ */}
       {tab === 'dataset' && (
         <>
           {dsLoading && (
             <div className="card" style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>
-              <span className="spinner" /> Äang táº£i thá»‘ng kÃª dataset...
+              <span className="spinner" /> Đang tải thống kê dataset...
             </div>
           )}
 
@@ -288,7 +289,7 @@ export default function Charts() {
             <>
               {/* Dataset Stat cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-                <StatCard label="Tá»•ng máº«u" value={dsStats.total.toLocaleString()} color="var(--accent)" sub="gÃ¡n nhÃ£n thá»§ cÃ´ng" />
+                <StatCard label="Tổng mẫu" value={dsStats.total.toLocaleString()} color="var(--accent)" sub="gán nhãn thủ công" />
                 <StatCard label="Clean" value={(dsStats.labels.CLEAN ?? 0).toLocaleString()} color={COLORS.clean}
                   sub={`${(((dsStats.labels.CLEAN ?? 0) / dsStats.total) * 100).toFixed(1)}%`} />
                 <StatCard label="Offensive" value={(dsStats.labels.OFFENSIVE ?? 0).toLocaleString()} color={COLORS.offensive}
@@ -301,7 +302,7 @@ export default function Charts() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 20, marginBottom: 20 }}>
                 {/* Label donut */}
                 <div className="card">
-                  <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>ðŸ·ï¸ PhÃ¢n bá»‘ nhÃ£n dataset</div>
+                  <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>🏷️ Phân bổ nhãn dataset</div>
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie
@@ -324,14 +325,14 @@ export default function Charts() {
 
                 {/* Source bar */}
                 <div className="card">
-                  <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>ðŸŒ Nguá»“n dá»¯ liá»‡u</div>
+                  <div style={{ fontWeight: 600, marginBottom: 16, fontSize: '0.9rem' }}>🌐 Nguồn dữ liệu</div>
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={dsStats.sources} layout="vertical" barSize={20}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
                       <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
                       <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} width={80} />
                       <Tooltip content={<DarkTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-                      <Bar dataKey="count" name="Sá»‘ máº«u" fill="var(--accent)" radius={[0, 6, 6, 0]} />
+                      <Bar dataKey="count" name="Số mẫu" fill="var(--accent)" radius={[0, 6, 6, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -341,10 +342,10 @@ export default function Charts() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                 {/* Hate category */}
                 <div className="card">
-                  <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.9rem' }}>ðŸš¨ Danh má»¥c Hate Speech</div>
+                  <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.9rem' }}>🚨 Danh mục Hate Speech</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: 12 }}>Top 15 hate categories trong dataset</div>
                   {dsStats.hate_categories.length === 0
-                    ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>KhÃ´ng cÃ³ dá»¯ liá»‡u hate category</div>
+                    ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Không có dữ liệu hate category</div>
                     : (
                       <ResponsiveContainer width="100%" height={280}>
                         <BarChart data={dsStats.hate_categories} layout="vertical" barSize={14}>
@@ -352,7 +353,7 @@ export default function Charts() {
                           <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
                           <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} width={100} />
                           <Tooltip content={<DarkTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-                          <Bar dataKey="count" name="Sá»‘ máº«u" fill={COLORS.hate} radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="count" name="Số mẫu" fill={COLORS.hate} radius={[0, 4, 4, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     )}
@@ -360,15 +361,15 @@ export default function Charts() {
 
                 {/* Pass-7 level */}
                 <div className="card">
-                  <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.9rem' }}>ðŸŽ¯ Má»©c Ä‘á»™ nháº¥t quÃ¡n gÃ¡n nhÃ£n (Pass 7)</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: 12 }}>Pass 7 = 7 láº§n gÃ¡n nhÃ£n Ä‘á»“ng thuáº­n â€” cÃ ng cao cÃ ng cháº¯c cháº¯n</div>
+                  <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.9rem' }}>🎯 Mức độ nhất quán gán nhãn (Pass 7)</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: 12 }}>Pass 7 = 7 lần gán nhãn đồng thuận — càng cao càng chắc chắn</div>
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={dsStats.pass7_levels} layout="vertical" barSize={18}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
                       <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
                       <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} width={70} />
                       <Tooltip content={<DarkTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-                      <Bar dataKey="count" name="Sá»‘ máº«u" fill={COLORS.tier2} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" name="Số mẫu" fill={COLORS.tier2} radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -376,7 +377,7 @@ export default function Charts() {
 
               <div className="card">
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  ðŸ“‚ Nguá»“n: <code>dataset_full_5_3_2.csv</code> Â· <strong style={{ color: 'var(--text-primary)' }}>{dsStats.total.toLocaleString()} máº«u</strong> gÃ¡n nhÃ£n báº±ng phÆ°Æ¡ng phÃ¡p Pass-7
+                  📂 Nguồn: <code>dataset_full_5_3_2.csv</code> · <strong style={{ color: 'var(--text-primary)' }}>{dsStats.total.toLocaleString()} mẫu</strong> gán nhãn bằng phương pháp Pass-7
                 </div>
               </div>
             </>

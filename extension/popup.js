@@ -101,6 +101,20 @@ resetBtn.addEventListener("click", () => {
   );
 });
 
+// ── Live-update: lắng nghe storage thay đổi từ background (real-time) ───────
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local") return;
+  if ("tcd_offensive_count" in changes) {
+    offensiveCountEl.textContent = changes.tcd_offensive_count.newValue ?? 0;
+  }
+  if ("tcd_hate_count" in changes) {
+    hateCountEl.textContent = changes.tcd_hate_count.newValue ?? 0;
+  }
+  if ("tcd_enabled" in changes) {
+    toggleEl.checked = changes.tcd_enabled.newValue;
+  }
+});
+
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   render();

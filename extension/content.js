@@ -654,7 +654,6 @@
 
     const overlay = document.createElement("div");
     overlay.className = "tcd-overlay";
-    overlay.title = "Nội dung có thể độc hại — nhấn để hiện";
     positionOverlay(overlay, rect);
 
     // Chấm tròn màu: 🔴 hate · 🟡 offensive
@@ -664,10 +663,18 @@
     dot.className = `tcd-label-dot tcd-label-dot--${dotClass}`;
     overlay.appendChild(dot);
 
-    overlay.addEventListener("click", (e) => {
-      e.stopPropagation();
-      removeOverlay(target);
-    });
+    // 🔴 Hate: KHÔNG cho xóa overlay — chỉ offensive vàng mới được click ẩn
+    if (safeLabel === "hate") {
+      overlay.style.cursor = "not-allowed";
+      overlay.title = "Nội dung thù hận — không thể bỏ che mờ";
+    } else {
+      overlay.style.cursor = "pointer";
+      overlay.title = "Nội dung có thể độc hại — nhấn để hiện";
+      overlay.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeOverlay(target);
+      });
+    }
 
     document.body.appendChild(overlay);
     overlayMap.set(target, overlay);
@@ -718,10 +725,23 @@
     });
   }
 
+  // Scroll handler dùng rAF để overlay theo kịp tốc độ frame browser (không bị lag)
+  let _scrollRafPending = false;
+  function onScrollRaf() {
+    _scrollRafPending = false;
+    syncOverlays();
+  }
+  function onScroll() {
+    if (_scrollRafPending) return;
+    _scrollRafPending = true;
+    requestAnimationFrame(onScrollRaf);
+  }
+
   function startSyncLoop() {
     if (syncTimer) return;
-    syncTimer = setInterval(syncOverlays, OVERLAY_SYNC_MS);
-    window.addEventListener("scroll", syncOverlays, { passive: true });
+    // interval 100ms làm fallback cho layout shift (không phải scroll)
+    syncTimer = setInterval(syncOverlays, 100);
+    window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", syncOverlays, { passive: true });
   }
 
@@ -729,7 +749,7 @@
     if (!syncTimer) return;
     clearInterval(syncTimer);
     syncTimer = null;
-    window.removeEventListener("scroll", syncOverlays);
+    window.removeEventListener("scroll", onScroll);
     window.removeEventListener("resize", syncOverlays);
   }
 
