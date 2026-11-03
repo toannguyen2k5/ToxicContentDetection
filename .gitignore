@@ -22,3 +22,6 @@ dashboard/node_modules/
 dashboard/build/
 .ipynb_checkpoints/
 src/tier3_qwen/
+# Model weights GGUF — quá nặng để commit (~2.3GB), team tự đặt file
+# Đường dẫn cần có: src/tier3_qwen/models/Qwen3-4B-GGUF/qwen3-4b-q4_k_m.gguf
+*.gguf

@@ -23,6 +23,11 @@ export interface LogEntry {
   latency_ms: number
   source_url: string | null
   timestamp: string
+  // Training-log only fields (from dataset_full_5_3_2.csv)
+  quoted_text?: string | null
+  pass_7_level?: string | null
+  pass_7_reason?: string | null
+  hate_category?: string | null
 }
 
 export interface LogPage {
@@ -109,6 +114,12 @@ export async function predictText(text: string): Promise<PredictionResult> {
   return response.data
 }
 
+/** [C] Debug: chạy cả 3 tầng bất kể cascade threshold */
+export async function predictDebug(text: string): Promise<PredictionResult & { debug: boolean }> {
+  const response = await api.post<PredictionResult & { debug: boolean }>('/api/text/predict-debug', { text })
+  return response.data
+}
+
 /** [A] Kiểm tra API health (ping /health) */
 export async function checkApiHealth(): Promise<boolean> {
   const response = await api.get<{ status: string }>('/health')
@@ -117,15 +128,16 @@ export async function checkApiHealth(): Promise<boolean> {
 
 // ─── API calls (C) ────────────────────────────────────────────────────────
 
-/** [C] LogViewer: 33k rows thật từ labels_agreed.csv */
+/** [C] LogViewer: 61k rows thật từ dataset_full_5_3_2.csv */
 export async function fetchTrainingLogs(
-  limit = 200,
+  limit = 100,
   skip  = 0,
   label = 'all'
 ): Promise<{ logs: LogEntry[]; total: number; stats: LogStats }> {
   try {
     const res = await api.get<{ logs: LogEntry[]; total: number; stats: LogStats }>(
-      `/api/text/training-logs?limit=${limit}&skip=${skip}&label=${label}`
+      '/api/text/training-logs',
+      { params: { limit, skip, label } }
     )
     return res.data
   } catch {
@@ -143,5 +155,26 @@ export async function fetchExtensionStats(): Promise<LogStats> {
     clean:     res.data.labels?.CLEAN     ?? 0,
     offensive: res.data.labels?.OFFENSIVE ?? 0,
     hate:      res.data.labels?.HATE      ?? 0,
+  }
+}
+
+// ─── Dataset Stats (từ 61k CSV) ─────────────────────────────────────────────
+export interface DatasetStatEntry { name: string; count: number }
+
+export interface DatasetStats {
+  total: number
+  labels: { CLEAN?: number; OFFENSIVE?: number; HATE?: number }
+  sources: DatasetStatEntry[]
+  hate_categories: DatasetStatEntry[]
+  pass7_levels: DatasetStatEntry[]
+}
+
+/** [C] Charts Dataset tab: thống kê aggregate từ 61k rows CSV */
+export async function fetchDatasetStats(): Promise<DatasetStats | null> {
+  try {
+    const res = await api.get<DatasetStats>('/api/text/dataset-stats')
+    return res.data
+  } catch {
+    return null
   }
 }

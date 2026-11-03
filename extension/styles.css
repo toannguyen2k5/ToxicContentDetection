@@ -1,30 +1,54 @@
-/* [Owner: A] CSS này được Chrome TỰ ĐỘNG chèn vào MỌI trang khớp
-   content_scripts.matches trong manifest.json (kể cả khi content.js
-   không làm gì). Vì vậy KHÔNG được đặt bất kỳ rule nào nhắm vào các
-   selector toàn cục như `body`, `html`, `*` ở đây — mọi rule global như
-   vậy sẽ áp thẳng lên trang web của người dùng (vd facebook.com) và có
-   thể phá vỡ layout của họ.
-   Toàn bộ style cho POPUP của extension đã được tách sang popup.css
-   (chỉ được load trong popup.html, không bao giờ chèn vào trang ngoài). */
+/* [Owner: A + C]
+   CSS này được Chrome TỰ ĐỘNG chèn vào MỌI trang khớp
+   content_scripts.matches trong manifest.json. KHÔNG được dùng
+   selector toàn cục (body, html, *) — sẽ phá layout trang ngoài.
+   Popup styles → popup.css (chỉ load trong popup.html). */
 
-/* position: absolute — khớp với content.js (toạ độ = rect + scroll).
-   Overlay cuộn cùng trang nên không bị trễ/lộ khi lướt. */
+/* position: fixed — overlay bám theo VIEWPORT, không cần cộng scroll.
+   syncOverlays() cập nhật 200ms/lần khi element di chuyển trong viewport. */
 .tcd-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position: fixed;
   z-index: 2147483647;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.15);
-  outline: 1px dashed rgba(217, 48, 37, 0.5);
-  border-radius: 2px;
+  background: rgba(15, 12, 41, 0.55);
+  border-radius: 4px;
   cursor: pointer;
   pointer-events: auto;
-  transition: backdrop-filter 0.15s ease;
+  transition: backdrop-filter 0.15s ease, background 0.15s ease;
+  overflow: hidden;
 }
 
 .tcd-overlay:hover {
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  background: rgba(15, 12, 41, 0.35);
+}
+
+/* Chấm màu tượng trưng — góc bottom-right của overlay */
+.tcd-label-dot {
+  position: absolute;
+  bottom: 5px;
+  right: 7px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* 🔴 HATE — đỏ */
+.tcd-label-dot--hate {
+  background: #ff4d4d;
+  box-shadow: 0 0 6px 1px rgba(255, 77, 77, 0.8);
+}
+
+/* 🟡 OFFENSIVE — vàng */
+.tcd-label-dot--offensive {
+  background: #ffd43b;
+  box-shadow: 0 0 6px 1px rgba(255, 212, 59, 0.8);
+}
+
+/* Fallback nếu label không xác định */
+.tcd-label-dot--unknown {
+  background: #aaa;
 }

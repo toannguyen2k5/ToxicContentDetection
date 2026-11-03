@@ -1,83 +1,271 @@
-/* [Owner: A] Style cho POPUP của extension.
-   File này CHỈ được load trong popup.html (KHÔNG khai báo trong
-   content_scripts của manifest.json), nên các rule global ở đây (body, ...)
-   an toàn và không ảnh hưởng tới bất kỳ trang web nào của người dùng. */
+/* [Owner: A + C] Style cho POPUP extension.
+   Chỉ load trong popup.html — KHÔNG bao giờ inject vào trang ngoài.
+   Theme: dark glassmorphism khớp với web dashboard. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  margin: 0;
-  width: 240px;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-}
-
-.tcd-popup {
-  padding: 14px 16px;
-}
-
-.tcd-popup h3 {
-  margin: 0 0 12px 0;
-  font-size: 15px;
-}
-
-.tcd-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
+  width: 280px;
+  font-family: -apple-system, "Segoe UI", Inter, sans-serif;
+  background: #0f0c29;
+  color: #e2e0f0;
   font-size: 13px;
 }
 
+.tcd-popup {
+  background: linear-gradient(145deg, #1a1535 0%, #12102a 100%);
+  min-height: 100px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.tcd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.tcd-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.tcd-icon {
+  font-size: 20px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(102,126,234,0.6));
+}
+
+.tcd-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #c8c5f0;
+  letter-spacing: 0.3px;
+}
+
+.tcd-host {
+  font-size: 10.5px;
+  color: #7a77a0;
+  margin-top: 1px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Toggle switch ───────────────────────────────────────────────── */
 .tcd-switch {
   position: relative;
   display: inline-block;
-  width: 36px;
-  height: 20px;
+  width: 38px;
+  height: 21px;
+  flex-shrink: 0;
 }
 
-.tcd-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
+.tcd-switch input { opacity: 0; width: 0; height: 0; }
 
 .tcd-slider {
   position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.12);
+  border-radius: 21px;
   cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #ccc;
-  border-radius: 20px;
-  transition: 0.2s;
+  transition: background 0.2s;
 }
 
 .tcd-slider::before {
   content: "";
   position: absolute;
-  height: 14px;
-  width: 14px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
+  width: 15px; height: 15px;
+  left: 3px; bottom: 3px;
+  background: #fff;
   border-radius: 50%;
-  transition: 0.2s;
+  transition: transform 0.2s;
 }
 
 .tcd-switch input:checked + .tcd-slider {
-  background-color: #1a73e8;
+  background: linear-gradient(135deg, #667eea, #764ba2);
 }
 
 .tcd-switch input:checked + .tcd-slider::before {
-  transform: translateX(16px);
+  transform: translateX(17px);
 }
 
-.tcd-reset-btn {
+/* ── Status bar ──────────────────────────────────────────────────── */
+.tcd-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.tcd-status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #555;
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.tcd-status-dot.connected {
+  background: #51cf66;
+  box-shadow: 0 0 5px rgba(81,207,102,0.6);
+}
+
+.tcd-status-dot.offline {
+  background: #ff4d4d;
+  box-shadow: 0 0 5px rgba(255,77,77,0.5);
+}
+
+.tcd-status-text {
+  font-size: 11px;
+  color: #8a87b0;
+}
+
+/* ── Stats ───────────────────────────────────────────────────────── */
+.tcd-stats {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.tcd-stat-label {
+  font-size: 10.5px;
+  color: #7a77a0;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 8px;
+}
+
+.tcd-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.tcd-stat-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+}
+
+.tcd-stat-divider {
+  width: 1px; height: 36px;
+  background: rgba(255,255,255,0.07);
+  margin: 0 6px;
+}
+
+.tcd-stat-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tcd-stat-offensive .tcd-stat-dot {
+  background: #ffd43b;
+  box-shadow: 0 0 5px rgba(255,212,59,0.6);
+}
+
+.tcd-stat-hate .tcd-stat-dot {
+  background: #ff4d4d;
+  box-shadow: 0 0 5px rgba(255,77,77,0.6);
+}
+
+.tcd-stat-count {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e2e0f0;
+  line-height: 1;
+}
+
+.tcd-stat-name {
+  font-size: 10px;
+  color: #7a77a0;
+  margin-top: 2px;
+}
+
+/* ── Threshold ───────────────────────────────────────────────────── */
+.tcd-threshold {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.tcd-threshold-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tcd-threshold-label {
+  font-size: 11px;
+  color: #9b98c0;
+}
+
+.tcd-threshold-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #667eea;
+  background: rgba(102,126,234,0.12);
+  padding: 2px 9px;
+  border-radius: 20px;
+}
+
+input[type="range"] {
   width: 100%;
-  padding: 6px 0;
-  border: 1px solid #ddd;
-  background: #f6f6f6;
-  border-radius: 6px;
+  height: 4px;
+  accent-color: #667eea;
   cursor: pointer;
-  font-size: 12px;
+  background: rgba(255,255,255,0.10);
+  border-radius: 4px;
+  outline: none;
+  -webkit-appearance: none;
 }
 
-.tcd-reset-btn:hover {
-  background: #eee;
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #667eea;
+  box-shadow: 0 0 5px rgba(102,126,234,0.5);
+  cursor: pointer;
+}
+
+.tcd-threshold-hints {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: #5a577a;
+  margin-top: 5px;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+.tcd-footer {
+  padding: 10px 14px 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.tcd-btn {
+  width: 100%;
+  padding: 7px 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  color: #9b98c0;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tcd-btn:hover {
+  background: rgba(255,255,255,0.10);
+  color: #e2e0f0;
 }

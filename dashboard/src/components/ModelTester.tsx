@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { predictText, type PredictionLabel, type PredictionResult, type PredictionStage } from '../api/client'
+import { predictText, predictDebug, type PredictionLabel, type PredictionResult, type PredictionStage } from '../api/client'
 
 const LABEL_CLS: Record<PredictionLabel, string> = {
   CLEAN: 'badge-CLEAN',
@@ -12,7 +12,7 @@ function tierNumber(tier: string): number {
 }
 
 function fmtLatency(ms: number): string {
-  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms.toFixed(1)}ms`
 }
 
 function formatLabel(label: string): PredictionLabel {
@@ -22,11 +22,25 @@ function formatLabel(label: string): PredictionLabel {
     : 'CLEAN'
 }
 
+function TierBadge({ stage, running }: { stage?: PredictionStage; running: boolean }) {
+  if (running && !stage) {
+    return <span className="updating-badge"><span className="spinner" />Đang xử lý...</span>
+  }
+  if (!stage) return <span style={{ color: 'var(--text-secondary)' }}>—</span>
+  const label = formatLabel(stage.label)
+  if (label === 'CLEAN' || label === 'OFFENSIVE' || label === 'HATE') {
+    return <span className={`badge ${LABEL_CLS[label]}`}>{stage.label}</span>
+  }
+  // Error hoặc unknown
+  return <span style={{ color: '#ff6b6b', fontSize: '0.78rem' }}>{stage.label}</span>
+}
+
 export default function ModelTester() {
   const [text, setText] = useState('')
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<PredictionResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [debugMode, setDebugMode] = useState(false)
 
   const handleAnalyze = async () => {
     if (!text.trim() || running) return
@@ -35,7 +49,10 @@ export default function ModelTester() {
     setResult(null)
 
     try {
-      setResult(await predictText(text.trim()))
+      const res = debugMode
+        ? await predictDebug(text.trim())
+        : await predictText(text.trim())
+      setResult(res)
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : 'Lỗi không xác định'
       setError(`Không thể phân tích qua API. Hãy kiểm tra API và các model đã sẵn sàng.\n\nChi tiết lỗi: ${message}`)
@@ -75,19 +92,56 @@ export default function ModelTester() {
           onKeyDown={event => { if (event.key === 'Enter' && event.ctrlKey) void handleAnalyze() }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            Ctrl+Enter để gửi · Phân tích qua API theo thứ tự SVM → PhoBERT → Qwen
-          </span>
-          <button
-            id="btn-analyze"
-            className="btn btn-primary"
-            onClick={() => void handleAnalyze()}
-            disabled={running || !text.trim()}
-          >
-            {running
-              ? <><span className="spinner" />Đang phân tích...</>
-              : '🚀 Phân tích'}
-          </button>
+          {/* Debug Mode Toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <label
+              htmlFor="debug-toggle"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                cursor: 'pointer', fontSize: '0.8rem',
+                color: debugMode ? 'var(--accent)' : 'var(--text-secondary)',
+                userSelect: 'none',
+              }}
+            >
+              <div
+                id="debug-toggle"
+                role="checkbox"
+                aria-checked={debugMode}
+                tabIndex={0}
+                onClick={() => setDebugMode(d => !d)}
+                onKeyDown={e => e.key === ' ' && setDebugMode(d => !d)}
+                style={{
+                  width: 36, height: 20, borderRadius: 10,
+                  background: debugMode ? 'var(--accent)' : 'rgba(255,255,255,0.12)',
+                  position: 'relative', transition: 'background 0.2s', cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{
+                  position: 'absolute', top: 3, left: debugMode ? 19 : 3,
+                  width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                  transition: 'left 0.2s',
+                }} />
+              </div>
+              🔬 Debug mode (chạy cả 3 tầng)
+            </label>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              Ctrl+Enter để gửi
+            </span>
+            <button
+              id="btn-analyze"
+              className="btn btn-primary"
+              onClick={() => void handleAnalyze()}
+              disabled={running || !text.trim()}
+            >
+              {running
+                ? <><span className="spinner" />Đang phân tích...</>
+                : debugMode ? '🔬 Debug All Tiers' : '🚀 Phân tích'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -95,8 +149,18 @@ export default function ModelTester() {
 
       {(running || result) && (
         <div className="card">
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 14 }}>
-            Kết quả từng tầng:
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 14,
+          }}>
+            <span>Kết quả từng tầng:</span>
+            {result && (
+              <span style={{ fontSize: '0.75rem', fontWeight: 400 }}>
+                {debugMode
+                  ? '🔬 Debug mode — tất cả tầng đều chạy độc lập'
+                  : `⚡ Cascade — dừng tại Tầng ${finalTier}`}
+              </span>
+            )}
           </div>
           <table className="tier-table">
             <thead>
@@ -116,18 +180,21 @@ export default function ModelTester() {
                   : tier === 2
                     ? 'PhoBERT cross-attention'
                     : 'Qwen qua Ollama'
+
+                const isSkipped = result && !debugMode && !stage
                 return (
-                  <tr key={tier}>
+                  <tr key={tier} style={{ opacity: isSkipped ? 0.45 : 1 }}>
                     <td>
                       <div className="tier-name-cell">Tầng {tier} · {name}</div>
                       <div className="tier-sub">{description}</div>
                     </td>
                     <td>
-                      {running && !stage
-                        ? <span className="updating-badge"><span className="spinner" />Đang xử lý...</span>
-                        : stage
-                          ? <span className={`badge ${LABEL_CLS[stage.label]}`}>{stage.label}</span>
-                          : '—'}
+                      <TierBadge stage={stage} running={running} />
+                      {isSkipped && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: 6 }}>
+                          (bỏ qua)
+                        </span>
+                      )}
                     </td>
                     <td style={{ color: 'var(--text-primary)' }}>
                       {stage
@@ -145,7 +212,11 @@ export default function ModelTester() {
                 <tr className="final-row">
                   <td>
                     <div className="tier-name-cell" style={{ color: 'var(--accent)' }}>Kết quả cuối</div>
-                    <div className="tier-sub">Quyết định bởi Tầng {finalTier} · {fmtLatency(result.latency_ms)} tổng</div>
+                    <div className="tier-sub">
+                      {debugMode
+                        ? `Cascade quyết định bởi Tầng ${finalTier} · ${fmtLatency(result.latency_ms)} tổng`
+                        : `Quyết định bởi Tầng ${finalTier} · ${fmtLatency(result.latency_ms)} tổng`}
+                    </div>
                   </td>
                   <td><span className={`badge ${LABEL_CLS[finalLabel]}`}>{finalLabel}</span></td>
                   <td style={{ fontWeight: 600 }}>{(result.score * 100).toFixed(1)}%</td>

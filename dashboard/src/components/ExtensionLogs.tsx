@@ -95,6 +95,8 @@ export default function ExtensionLogs() {
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const paginated = logs
+  const lastSeen = logs.length > 0 ? logs[0].id : null
 
   const handleClear = async () => {
     // Không clear SQLite history — chỉ để placeholder

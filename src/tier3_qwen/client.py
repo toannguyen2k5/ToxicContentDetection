@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from .prompts import TOXIC_CLASSIFICATION_PROMPT
+from .prompts import SYSTEM_PROMPT, USER_TEMPLATE
 
 QWEN_API_URL = os.getenv(
     "QWEN_API_URL", "http://localhost:11434/v1/chat/completions"
@@ -32,7 +32,8 @@ def _payload(text: str) -> dict[str, Any]:
     return {
         "model": QWEN_MODEL_NAME,
         "messages": [
-            {"role": "user", "content": TOXIC_CLASSIFICATION_PROMPT.format(text=text)}
+            {"role": "system", "content": SYSTEM_PROMPT},          # KV-cached
+            {"role": "user",   "content": USER_TEMPLATE.format(text=text)},  # per-request
         ],
         "temperature": 0,
         "max_tokens": 80,   # JSON output chỉ cần ~50 tokens (C-opt)

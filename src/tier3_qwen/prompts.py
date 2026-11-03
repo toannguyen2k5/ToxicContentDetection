@@ -2,16 +2,16 @@
 [Owner: C] — Task C-10
 Prompt template dùng cho Qwen ở Tier 3.
 Viết theo đúng guideline_gan_nhan_tieng_viet.md (không bịa thêm rule).
-Cập nhật: Oct 2026 — full 8-bước + quy tắc đặc biệt.
+Cập nhật: Nov 2026 — tách system/user message để tận dụng KV cache.
 """
 
 # ---------------------------------------------------------------------------
-# Prompt chính — xây dựng theo guideline Section 9 (7 quy tắc cốt lõi)
-# và Section 12 (quy trình 8 bước đầy đủ).
-# "/no_think" cuối prompt tắt thinking mode của Qwen3 → giảm 2-4s latency.
+# SYSTEM_PROMPT: hướng dẫn phân loại — STATIC, được Ollama KV-cache sau request đầu tiên.
+# Không đưa text cần phân loại vào đây.
+# "/no_think" tắt thinking mode của Qwen3 → giảm 2-4s latency.
 # ---------------------------------------------------------------------------
-TOXIC_CLASSIFICATION_PROMPT = """\
-Bạn là hệ thống phân loại nội dung tiếng Việt. Phân loại bình luận sau vào \
+SYSTEM_PROMPT = """\
+Bạn là hệ thống phân loại nội dung tiếng Việt. Phân loại bình luận vào \
 đúng một nhãn theo quy trình dưới đây.
 
 ## NHÃN
@@ -89,10 +89,13 @@ Bước 8: Không thỏa bất kỳ điều kiện nào trên → CLEAN
 | "Mấy đứa gian lận thi cử" | OFFENSIVE | Nhóm theo hành vi |
 | "À vâng, dân X thì giỏi lừa đảo" | HATE | Mỉa mai về nhóm |
 
-## BÌNH LUẬN CẦN PHÂN LOẠI
-{text}
-
 Trả lời ĐÚNG ĐỊNH DẠNG JSON sau (không thêm text nào khác ngoài JSON):
-{{"label": "CLEAN|OFFENSIVE|HATE", "confidence": 0.0-1.0, "reason": "giải thích ngắn 1 câu tiếng Việt"}}
+{"label": "CLEAN|OFFENSIVE|HATE", "confidence": 0.0-1.0, "reason": "giải thích ngắn 1 câu tiếng Việt"}
 
 /no_think"""
+
+# USER_TEMPLATE: chỉ chứa text cần phân loại — thay đổi mỗi request.
+USER_TEMPLATE = "Bình luận cần phân loại:\n{text}"
+
+# Giữ lại alias cũ để không bị lỗi import nếu có code khác dùng
+TOXIC_CLASSIFICATION_PROMPT = SYSTEM_PROMPT

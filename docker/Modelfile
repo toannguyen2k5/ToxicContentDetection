@@ -1,0 +1,21 @@
+# Modelfile cho Qwen3-4B Q4_K_M
+# Ollama đọc file GGUF này và tạo model với các parameter tối ưu
+FROM /models/qwen3-4b-q4_k_m.gguf
+
+# Context length — 4096 tokens đủ cho classification task
+PARAMETER num_ctx 4096
+
+# GPU layers — đẩy 35 layers lên VRAM RTX 3050 (4GB)
+PARAMETER num_gpu 35
+
+# CPU threads cho các layers còn lại
+PARAMETER num_thread 8
+
+# Temperature thấp cho classification (cần consistent output)
+PARAMETER temperature 0.1
+
+# Top-p sampling
+PARAMETER top_p 0.9
+
+# Giới hạn output tokens (classification chỉ cần JSON ngắn)
+PARAMETER num_predict 128

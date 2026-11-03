@@ -585,21 +585,27 @@
             return;
           }
           const data = response.data;
-          if (typeof data.toxic === "boolean") resolve(data.toxic);
-          else if (typeof data.is_toxic === "boolean") resolve(data.is_toxic);
-          else if (typeof data.label === "string") resolve(/toxic|độc hại|1/i.test(data.label));
-          else if (typeof data.prediction !== "undefined") resolve(Number(data.prediction) === 1 || data.prediction === true);
-          else if (typeof data.score === "number") resolve(data.score >= 0.5);
-          else resolve(null);
+          // Trả về object đầy đủ — overlay dùng label để hiển thị chấm màu
+          const isToxic =
+            typeof data.toxic === "boolean"      ? data.toxic :
+            typeof data.is_toxic === "boolean"   ? data.is_toxic :
+            typeof data.label === "string"       ? /toxic|hate|offensive/i.test(data.label) :
+            typeof data.score === "number"       ? data.score >= 0.5 :
+            false;
+          const label = (typeof data.label === "string" ? data.label : "offensive").toLowerCase();
+          const score = typeof data.score === "number" ? data.score : 0.5;
+          resolve({ isToxic, label, score });
         });
       });
     })();
 
     const cachedRequest = request.then((result) => {
       pendingPredictions.delete(key);
-      if (typeof result === "boolean" || result === null) {
-        cachePrediction(key, Promise.resolve(result), result === null ? FAILED_PREDICTION_CACHE_MS : Infinity);
-      }
+      cachePrediction(
+        key,
+        Promise.resolve(result),
+        result === null ? FAILED_PREDICTION_CACHE_MS : Infinity
+      );
       return result;
     });
     pendingPredictions.set(key, cachedRequest);
@@ -630,10 +636,10 @@
     while (apiQueue.length > 0) {
       if (!enabled) break;
       const { el, text, quote_text, post_title } = apiQueue.shift();
-      const isToxic = await checkToxic(text, quote_text, post_title);
-      if (isToxic) {
-        console.info("[Toxic Detector] Toxic content detected; blurring target");
-        createOverlay(el);
+      const result = await checkToxic(text, quote_text, post_title);
+      if (result && result.isToxic) {
+        console.info("[Toxic Detector] Toxic content detected", result.label, result.score.toFixed(2));
+        createOverlay(el, result.label);
       }
     }
 
@@ -641,7 +647,7 @@
   }
 
   // ---------- Overlay (không mutate DOM gốc của trang) ----------
-  function createOverlay(target) {
+  function createOverlay(target, label) {
     if (overlayMap.has(target) || !target.isConnected) return;
     const rect = target.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
@@ -650,6 +656,14 @@
     overlay.className = "tcd-overlay";
     overlay.title = "Nội dung có thể độc hại — nhấn để hiện";
     positionOverlay(overlay, rect);
+
+    // Chấm tròn màu: 🔴 hate · 🟡 offensive
+    const safeLabel = (label || "offensive").toLowerCase();
+    const dotClass = ["hate", "offensive"].includes(safeLabel) ? safeLabel : "unknown";
+    const dot = document.createElement("div");
+    dot.className = `tcd-label-dot tcd-label-dot--${dotClass}`;
+    overlay.appendChild(dot);
+
     overlay.addEventListener("click", (e) => {
       e.stopPropagation();
       removeOverlay(target);
@@ -660,14 +674,15 @@
     activeOverlays.add(target);
     startSyncLoop();
 
-    chrome.runtime.sendMessage({ type: "TCD_BLOCKED" }).catch(() => { });
+    chrome.runtime.sendMessage({ type: "TCD_BLOCKED", label: safeLabel }).catch(() => { });
   }
 
-  // CSS dùng position: absolute nên toạ độ tính theo TRANG (cộng scroll).
+  // CSS dùng position: fixed — toạ độ tính theo VIEWPORT (getBoundingClientRect).
+  // Không cộng scrollY/scrollX. syncOverlays() cập nhật khi element di chuyển.
   function positionOverlay(overlay, rect) {
-    overlay.style.top = `${rect.top + window.scrollY}px`;
-    overlay.style.left = `${rect.left + window.scrollX}px`;
-    overlay.style.width = `${rect.width}px`;
+    overlay.style.top    = `${rect.top}px`;
+    overlay.style.left   = `${rect.left}px`;
+    overlay.style.width  = `${rect.width}px`;
     overlay.style.height = `${rect.height}px`;
   }
 
