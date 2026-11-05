@@ -54,7 +54,7 @@ def predict_text(text: str, quote_text: str = "") -> dict:
     # ── Tầng 2: PhoBERT ───────────────────────────────────────────────────────
     if need_escalate and TIER2_ENABLED:
         t_start      = perf_counter()
-        t2           = tier2_model.predict(text, quote_text)
+        t2           = tier2_model.predict(text)
         prob_t2      = float(t2["score"])
         final_label  = t2["label"].upper()
         score        = prob_t2
