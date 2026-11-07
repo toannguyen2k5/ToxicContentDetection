@@ -6,6 +6,7 @@ from typing import Any
 
 _SEGMENTER_LOCK = Lock()
 _SEGMENTER: Any = None
+_WORD_TOKENIZE_LOCK = Lock()
 
 
 def tokenize(text: str) -> list[str]:
@@ -13,7 +14,9 @@ def tokenize(text: str) -> list[str]:
 
     if not text.strip():
         return []
-    return word_tokenize(text, format="text").split()
+    # Underthesea lazily initializes a process-global model without a lock.
+    with _WORD_TOKENIZE_LOCK:
+        return word_tokenize(text, format="text").split()
 
 
 def _phobert_segmenter():

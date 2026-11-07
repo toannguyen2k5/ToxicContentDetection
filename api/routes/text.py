@@ -126,7 +126,7 @@ def predict_debug(req: PredictRequest):
 
     # --- Tầng 2: PhoBERT (luôn chạy, bỏ qua threshold) ---
     t2_start = perf_counter()
-    t2 = tier2_model.predict(text, quote_text)
+    t2 = tier2_model.predict(text)
     stages.append({
         "tier": 2,
         "label": t2["label"].upper(),

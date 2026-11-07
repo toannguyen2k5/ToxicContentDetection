@@ -4,5 +4,5 @@
   "confidence_threshold": 0.8,
   "tier1_enabled": true,
   "tier2_enabled": true,
-  "tier3_enabled": true
+  "tier3_enabled": false
 }
